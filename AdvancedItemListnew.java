@@ -358,10 +358,44 @@ public class AdvancedItemListAdapter extends RecyclerView.Adapter<AdvancedItemLi
                     return true;
                 }
                 @Override
-                public boolean onSingleTapConfirmed(MotionEvent e) {
-                    // Optional: pause/play video, or do nothing.
-                    return false;
+public boolean onSingleTapConfirmed(MotionEvent e) {
+    // Only open fullscreen for app-hosted videos (not YouTube).
+    try {
+        if (p.getVideoUrl() != null && p.getVideoUrl().length() != 0) {
+            // Stop/release per-row player if active for this adapter position
+            if (currentPlayer != null && currentPlayingPosition == adapterPosition) {
+                try { currentPlayer.setPlayWhenReady(false); } catch (Throwable ignored) {}
+                try { currentPlayer.stop(); } catch (Throwable ignored) {}
+                try { currentPlayer.release(); } catch (Throwable ignored) {}
+                currentPlayer = null;
+                if (currentPlayerViewHolder != null) {
+                    try { currentPlayerViewHolder.releasePlayer(); } catch (Throwable ignored) {}
+                    currentPlayerViewHolder = null;
                 }
+                currentPlayingPosition = -1;
+            }
+            // Stop/release shared autoplay player if present
+            if (sharedPlayer != null) {
+                try { sharedPlayer.setPlayWhenReady(false); } catch (Throwable ignored) {}
+                try { sharedPlayer.stop(); } catch (Throwable ignored) {}
+                try { sharedPlayer.release(); } catch (Throwable ignored) {}
+                sharedPlayer = null;
+            }
+            if (sharedHolder != null) {
+                try { sharedHolder.playerView.setPlayer(null); } catch (Throwable ignored) {}
+                sharedHolder = null;
+            }
+            sharedPosition = RecyclerView.NO_POSITION;
+
+            // Open fullscreen activity for app-hosted video
+            watchVideo(p.getVideoUrl());
+            return true;
+        }
+    } catch (Throwable ignored) {}
+    // For YouTube or if no app-hosted video, do nothing special here;
+    // return false so StyledPlayerView/controls can handle the tap (pause/play).
+    return false;
+}
             });
             holder.playerView.setOnTouchListener((viewTouched, event) -> {
                 playerGestureDetector.onTouchEvent(event);
